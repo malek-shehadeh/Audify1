@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 10px;
+        }
+        .card {
+            width: 100%;
+            padding: 20px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            background-color: #fff;
+        }
+        .card-img-top {
+            width:800px;
+            height: 500px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin: 0 auto;
+            text-align: center;
+          
+          
+            
+    background-size: cover; 
+    background-position: center; 
+    background-repeat: no-repeat;
+        }
+        .rating {
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .rating span {
+            cursor: pointer;
+            color: #ccc;
+            transition: color 0.3s;
+            padding: 0 5px;
+        }
+        .rating span.active,
+        .rating span:hover {
+            color: gold;
+        }
+        .card-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .card-text {
+            margin: 10px 0;
+            color: #555;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 20px;
+                padding: 10px;
+            }
+            .card {
+                padding: 10px;
+            }
+            .card-title {
+                font-size: 20px;
+            }
+            .rating {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div id="podcastDetails">
+                <!-- Podcast details will be displayed here -->
+            </div>
+            <div id="star-rating">
+                <div class="rating">
+                    <span data-value="1">&#9733;</span>
+                    <span data-value="2">&#9733;</span>
+                    <span data-value="3">&#9733;</span>
+                    <span data-value="4">&#9733;</span>
+                    <span data-value="5">&#9733;</span>
+                </div>
+                <p id="ratingStatus">Rating: Not rated yet</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getDatabase, ref, get, push, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCn4__ysuQiwCHOlTD8JO65yiiiGopIZ2I",
+            authDomain: "podcast-project-6355e.firebaseapp.com",
+            databaseURL: "https://podcast-project-6355e-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "podcast-project-6355e",
+            storageBucket: "podcast-project-6355e.appspot.com",
+            messagingSenderId: "193613289014",
+            appId: "1:193613289014:web:79c3fdd22c4941d011aa97"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        async function getPodcastDetails(id) {
+            const dbRef = ref(db, `podcasts/${id}`);
+            try {
+                const snapshot = await get(dbRef);
+                if (snapshot.exists()) {
+                    const podcast = snapshot.val();
+                    displayPodcastDetails(podcast);
+                } else {
+                    console.log("Podcast not found");
+                }
+            } catch (error) {
+                console.error("Error retrieving podcast details: ", error);
+            }
+        }
+
+        function displayPodcastDetails(podcast) {
+            const podcastDetailsDiv = document.getElementById('podcastDetails');
+            podcastDetailsDiv.innerHTML = `
+             
+                <img src="./assets/img/${podcast.img}" class="card-img-top" alt="${podcast.title}">
+                <h5 class="card-title">${podcast.title}</h5>
+                <p class="card-text">Host by: ${podcast.host}</p>
+                <p class="card-text">Category: ${podcast.category}</p>
+                <p class="card-text">${podcast.description}</p>
+                <p class="card-text">Year: ${podcast.year}</p>
+            `;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const podcastId = urlParams.get('id');
+
+        if (podcastId) {
+            getPodcastDetails(podcastId);
+        } else {
+            console.error('Podcast ID not found in URL parameters');
+        }
+
+        function initRatingStars() {
+            const ratingStars = document.querySelectorAll('.rating span');
+            ratingStars.forEach(star => {
+                star.addEventListener('click', () => {
+                    const ratingValue = parseInt(star.getAttribute('data-value'));
+                    rateItem(ratingValue);
+                });
+            });
+        }
+
+        function updateRatingStatus(rating) {
+            const ratingStatus = document.getElementById('ratingStatus');
+            ratingStatus.textContent = `Rating: ${rating}`;
+        }
+
+        function highlightStars(value) {
+            const stars = document.querySelectorAll('.rating span');
+            stars.forEach(star => {
+                if (parseInt(star.getAttribute('data-value')) <= value) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+
+        function resetStars() {
+            const stars = document.querySelectorAll('.rating span');
+            stars.forEach(star => {
+                star.classList.remove('active');
+            });
+        }
+
+        function rateItem(rating) {
+            const ratingsRef = ref(db, `podcasts/${podcastId}/ratings`);
+            push(ratingsRef, { value: rating })
+                .then(() => {
+                    updateItemRating();
+                })
+                .catch(error => {
+                    console.error('Error adding rating:', error);
+                });
+        }
+
+        function updateItemRating() {
+            const ratingsRef = ref(db, `podcasts/${podcastId}/ratings`);
+            get(ratingsRef).then(snapshot => {
+                let total = 0;
+                let count = 0;
+                snapshot.forEach(childSnapshot => {
+                    const itemRating = childSnapshot.val().value;
+                    total += itemRating;
+                    count++;
+                });
+                const averageRating = total / count;
+                update(ref(db, `podcasts/${podcastId}`), { averageRating })
+                    .then(() => {
+                        updateRatingStatus(averageRating.toFixed(1));
+                        highlightStars(Math.round(averageRating));
+                    })
+                    .catch(error => {
+                        console.error('Error updating average rating:', error);
+                    });
+            }).catch(error => {
+                console.error('Error retrieving ratings:', error);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initRatingStars();
+        });
+    </script>
+</body>
+</html>
